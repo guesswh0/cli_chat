@@ -1,3 +1,4 @@
+import time
 import asyncio
 
 import click
@@ -8,15 +9,15 @@ from common import read_msg, write_msg
 async def monitor(reader, writer):
     addr = writer.get_extra_info('peername')
     username = await read_msg(reader)
-    print(f"{addr!r}: {username} is connected")
+    print(f"({time.strftime('%X')}) {addr!r}: {username} is connected")
 
     try:
         while True:
             msg = await read_msg(reader)
             if msg:
-                print(f"{username}: {msg}")
+                print(f"({time.strftime('%X')}) {username}: {msg}")
     except asyncio.streams.IncompleteReadError:
-        print(f"{addr!r}: {username} closed connection")
+        print(f"({time.strftime('%X')}) {addr!r}: {username} closed connection")
     finally:
         writer.close()
 
