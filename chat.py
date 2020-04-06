@@ -1,9 +1,10 @@
-import time
+__version__ = '0.2.0-dev'
+
 import asyncio
+import sys
+import time
 
 import click
-
-import sys
 
 
 async def write_msg(writer, msg: str):
