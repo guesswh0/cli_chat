@@ -2,12 +2,13 @@
 
 ## Usage
 
-### Run default server
-```
-  python chat.py server
-```
+#### Clone
+    git clone https://github.com/guesswh0/cli_chat.git
+#### Install
+    python setup.py install
+    
+#### Run default server
+    chat server
 
-### Open default chat as client
-```
-  python chat.py client [USERNAME]
-```
+#### Open default chat as client
+    chat client [USERNAME]
