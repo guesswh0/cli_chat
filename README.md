@@ -8,7 +8,7 @@
     python setup.py install
     
 #### Run default server
-    chat server
+    chat server --host [host] --port [port]
 
 #### Open default chat as client
-    chat client [USERNAME]
+    nc [host] [port]
