@@ -1,89 +1,67 @@
 __version__ = '0.3.0-dev'
 
 import asyncio
-import sys
 import time
 
 import click
 
+connections = {}
 
-async def write_msg(writer, msg: str):
-    data = msg.encode()
-    writer.write(len(data).to_bytes(4, sys.byteorder))
-    writer.write(data)
+
+def broadcast(msg):
+    data = f"({time.strftime('%X')}) {msg} + \n".encode('utf-8')
+    for reader, writer in connections.values():
+        writer.write(data)
+
+
+async def prompt_username(reader, writer):
+    while True:
+        writer.write("Enter username: ".encode("utf-8"))
+        data = (await reader.readline()).decode("utf-8")
+        if not data:
+            return
+        username = data.strip()
+        if username and username not in connections:
+            connections[username] = (reader, writer)
+            return username
+        writer.write("Sorry, that username is already taken.\n".encode("utf-8"))
+
+
+async def handle_connection(username, reader):
+    while True:
+        data = (await reader.readline()).decode("utf-8")
+        if not data:
+            del connections[username]
+            return
+        broadcast(username + ": " + data.strip())
+
+
+async def accept_connection(reader, writer):
+    print(f"{writer.get_extra_info('peername') !r}: is connected")
+    writer.write("Welcome to tty chat \n".encode("utf-8"))
+    username = await prompt_username(reader, writer)
+    if username:
+        broadcast("User %r has joined the room" % username)
+        await handle_connection(username, reader)
+        broadcast("User %r has left the room" % username)
     await writer.drain()
 
 
-async def read_msg(reader):
-    data = await reader.readexactly(4)
-    size = int.from_bytes(data, sys.byteorder)
-    msg = await reader.readexactly(size)
-    return msg.decode()
-
-
-async def monitor(reader, writer):
-    addr = writer.get_extra_info('peername')
-    username = await read_msg(reader)
-    print(f"({time.strftime('%X')}) {addr!r}: {username} is connected")
-
-    try:
-        while True:
-            msg = await read_msg(reader)
-            if msg:
-                print(f"({time.strftime('%X')}) {username}: {msg}")
-    except asyncio.streams.IncompleteReadError:
-        print(f"({time.strftime('%X')}) {addr!r}: {username} closed connection")
-    finally:
-        writer.close()
-
-
-async def handle_client(username, host, port):
-    reader, writer = await asyncio.open_connection(host, port)
-    await write_msg(writer, username)
-
-    try:
-        while True:
-            message = input()
-            if message == 'exit':
-                break
-            await write_msg(writer, message)
-    finally:
-        print('Closing connection')
-        writer.close()
-
-
-@click.group()
-def chat():
-    pass
-
-
-@chat.command()
+@click.command()
 @click.option('--host', help='Server host', default='127.0.0.1')
 @click.option('--port', help='Server port', type=int, default=5001)
-def server(host, port):
+def chat(host, port):
     loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(monitor, host, port)
+    coro = asyncio.start_server(accept_connection, host, port)
     serv = loop.run_until_complete(coro)
     # Serve requests until Ctrl+C is pressed
-    print('Serving on {}'.format(serv.sockets[0].getsockname()))
+    print('Serving chat on {}'.format(serv.sockets[0].getsockname()))
     try:
         loop.run_forever()
     except KeyboardInterrupt:
         serv.close()
     loop.run_until_complete(serv.wait_closed())
     loop.close()
-
-
-@chat.command()
-@click.argument('username', default='anonymous')
-@click.option('--host', help='Server host', default='127.0.0.1')
-@click.option('--port', help='Server port', type=int, default=5001)
-def client(username, host, port):
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(handle_client(username, host, port))
-    except KeyboardInterrupt:
-        loop.close()
 
 
 if __name__ == '__main__':
