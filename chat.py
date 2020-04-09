@@ -13,7 +13,7 @@ class Chat:
         self.server = asyncio.start_server(self.accept_connection, host, port)
 
     def broadcast(self, msg):
-        data = f"({time.strftime('%X')}) {msg} + \n".encode('utf-8')
+        data = f"({time.strftime('%X')}) {msg} \n".encode('utf-8')
         for reader, writer in self.connections.values():
             writer.write(data)
 
